@@ -9,11 +9,11 @@ CREATE DATABASE IF NOT EXISTS hbnb_test_db;
 -- Creates a new user
 CREATE USER IF NOT EXISTS 'hbnb_test'@'localhost' IDENTIFIED BY 'hbnb_test_pwd';
 
---GRANTS all privileges to new user
+-- Grants privileges to new user
 GRANT ALL PRIVILEGES ON hbnb_test_pwd.* TO 'hbnb_test'@'localhost';
 
--- GRANTS SELECT privilege to new user
-GRANT SELECT TO 'hbnb_test'@'localhost' ON performance_schema.*;
+-- Grants SELECT privilege to new user
+GRANT SELECT ON performance_schema.* TO 'hbnb_test'@'localhost';
 
 -- Flush privileges to apply changes
 FLUSH PRIVILEGES;
