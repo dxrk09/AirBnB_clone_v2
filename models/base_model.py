@@ -1,58 +1,68 @@
 #!/usr/bin/python3
-"""This module defines a base class for all models in our hbnb clone"""
-import uuid
+"""This Module defines a base class for all models in our hbnb clone"""
+import models
+from uuid import uuid4
 from datetime import datetime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Datetimes
 
 Base = declarative_base()
 
 
 class BaseModel:
-    """A base class for all hbnb models"""
-    id = Column(String(60), nullable=False, primary_key=True)
+    """A base class for all hbnb models
+
+    Attributes:
+        id (sqlalchemy String): The BaseModel id.
+        created_at (sqlalchemy DateTime): The datetime at creation.
+        updated_at (sqlalchemy DateTime): The datetime of last update.
+    """
+
+    id = Column(String(60), primary_key=True, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow())
-    updated_at = Column(DateTime, nullable=False, default=datetiem.utcnow())
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow())
 
     def __init__(self, *args, **kwargs):
-        """Instatntiates a new model"""
-        self.id = str(uuid.uuid4())
-        self.created_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
-        if kwargs:
-            for k, v in kwargs.items():
-                if k == "created_at" or k == "updated_at":
-                    v = datetime.strptime(v, '%Y-%m-%dT%H:%M:%S.%f')
-                if hasattr(self, k):
-                    setattr(self, k, v)
+        """Initialize a new BaseModel.
 
-    def __str__(self):
-        """Returns a string representation of the instance"""
-        cls = (str(type(self)).split('.')[-1]).split('\'')[0]
-        return '[{}] ({}) {}'.format(cls, self.id, self.__dict__)
+        Args:
+            *args (any): Unused.
+            **kwargs (dict): Key/value pairs of attributes.
+        """
+        self.id = str(uuid4())
+        self.created_at = self.updated_at = datetime.utcnow()
+        if kwargs:
+            for key, value in kwargs.items():
+                if key == "created_at" or key == "updated_at":
+                    value = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f")
+                if key != "__class__":
+                    setattr(self, key, value)
 
     def save(self):
-        """Updates updated_at with current time when instance is changed"""
-        from models import storage
+        """Update updated_at with the current time when instance is changed"""
         self.updated_at = datetime.utcnow()
-        storage.new(self)
-        storage.save()
+        models.storage.new(self)
+        models.storage.save()
 
     def to_dict(self):
-        """Convert instance into dict format"""
-        dictionary = {}
-        dictionary.update(self.__dict__)
-        dictionary.update({'__class__':
-                          (str(type(self)).split('.')[-1]).split('\'')[0]})
-        dictionary['created_at'] = self.created_at.isoformat()
-        dictionary['updated_at'] = self.updated_at.isoformat()
-        try:
-            del dictionary['_sa_instance_state']
-        except KeyError:
-            pass
-        return dictionary
+        """Convert instance into dict format
+
+        Includes the key/value pair __class__ representing
+        the class name of the object.
+        """
+        my_dict = self.__dict__.copy()
+        my_dict["__class__"] = str(type(self).__name__)
+        my_dict["created_at"] = self.created_at.isoformat()
+        my_dict["updated_at"] = self.updated_at.isoformat()
+        my_dict.pop("_sa_instance_state", None)
+        return my_dict
 
     def delete(self):
-        """delete the current instance from the storage"""
-        from models import storage
-        storage.delete(self)
+        """Delete the current instance from storage."""
+        models.storage.delete(self)
+
+    def __str__(self):
+        """Return the print/str representation of the BaseModel instance."""
+        d = self.__dict__.copy()
+        d.pop("_sa_instance_state", None)
+        return "[{}] ({}) {}".format(type(self).__name__, self.id, d)
