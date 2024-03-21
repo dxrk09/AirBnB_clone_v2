@@ -1,48 +1,64 @@
 #!/usr/bin/python3
-"""This is the base model class for AirBnB"""
-#!/usr/bin/python3
-"""the base model"""
-
-
-import uuid
-from datetime import datetime
+"""This module defines a base class for all models in our hbnb clone"""
 import models
+import uuid
+import datetime
+
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, String, DateTime
+
+
+Base = declarative_base()
 
 
 class BaseModel:
-    """BaseModel class"""
+    """A base class for all hbnb models"""
 
-    def __init__(self, *args, **kwargs):
-        """special method that initialize the public instance attributes"""
+    id = Column(String(60), primary_key=True,
+                nullable=False, unique=True)
+    created_at = Column(DateTime, nullable=False,
+                        default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False,
+                        default=datetime.datetime.utcnow,
+                        onupdate=datetime.datetime.utcnow)
+
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialization of BaseModel Class"""
         self.id = str(uuid.uuid4())
-        self.created_at = datetime.now()
-        self.updated_at = datetime.now()
+        self.created_at = datetime.datetime.now()
+        self.updated_at = datetime.datetime.now()
         if kwargs:
             for key, value in kwargs.items():
-                if key != "__class__":
-                    if key == "created_at" or key == "updated_at":
-                        setattr(
-                            self,
-                            key,
-                            datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f"))
-                    else:
-                        setattr(self, key, value)
-        models.storage.new(self)
+                if key in ["created_at", "updated_at"]:
+                    date = datetime.datetime.strptime(
+                        value, "%Y-%m-%dT%H:%M:%S.%f")
+                    setattr(self, key, date)
+                elif key != "__class__":
+                    setattr(self, key, value)
 
     def __str__(self):
-        """special method that return a formated string ready to be printed"""
-        f_string = f"[{self.__class__.__name__}] ({self.id}) {self.__dict__}"
-        return (f_string)
+        """Returns a string representation of the instance"""
+        cls = (str(type(self)).split('.')[-1]).split('\'')[0]
+        return '[{}] ({}) {}'.format(cls, self.id, self.__dict__)
 
     def save(self):
-        """Update 'updated_at' attribute and save changes to storage"""
-        self.updated_at = datetime.now()
+        """Updates updated_at with current time when instance is changed"""
+        self.updated_at = datetime.datetime.now()
+        models.storage.new(self)
         models.storage.save()
 
     def to_dict(self):
-        """method that return a dict containing different attributes"""
-        new_dict = self.__dict__.copy()
-        new_dict["__class__"] = self.__class__.__name__
-        new_dict["created_at"] = self.created_at.isoformat()
-        new_dict["updated_at"] = self.updated_at.isoformat()
-        return (new_dict)
+        """Convert instance into dict format"""
+        dictionary = {}
+        dictionary.update(self.__dict__)
+        dictionary.update({'__class__':
+                          (str(type(self)).split('.')[-1]).split('\'')[0]})
+        dictionary['created_at'] = self.created_at.isoformat()
+        dictionary['updated_at'] = self.updated_at.isoformat()
+        if '_sa_instance_state' in dictionary:
+            del dictionary['_sa_instance_state']
+        return dictionary
+
+    def delete(self):
+        """Docs"""
+        models.storage.delete(self)
