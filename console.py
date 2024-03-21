@@ -7,9 +7,32 @@ from models.__init__ import storage
 from models.user import User
 from models.place import Place
 from models.state import State
-from models.city import City
-from models.amenity import Amenity
 from models.review import Review
+
+
+def vorg_console_command_dynamo(args_list):
+    key_value = {}
+    for args in args_list[1:]:
+        new_list = args.split("=")
+        key = new_list[0]
+        value = new_list[1]
+        if value.startswith('"') and value.endswith('"'):
+            value = value.replace('"', "")
+        if '_' in value:
+            value = value.replace("_", " ")
+        if "id" not in key:
+            if '.' in value:
+                try:
+                    value = float(value)
+                except ValueError:
+                    value = value
+            else:
+                try:
+                    value = int(value)
+                except ValueError:
+                    value = value
+        key_value[key] = value
+    return (key_value)
 
 
 class HBNBCommand(cmd.Cmd):
@@ -37,7 +60,6 @@ class HBNBCommand(cmd.Cmd):
 
     def precmd(self, line):
         """Reformat command line for advanced command syntax.
-
         Usage: <class name>.<command>([<id> [<*args> or <**kwargs>]])
         (Brackets denote optional fields in usage example.)
         """
@@ -115,24 +137,23 @@ class HBNBCommand(cmd.Cmd):
 
     def do_create(self, args):
         """ Create an object of any class"""
-        try:
-            if not args:
-                raise SyntaxError()
-            arg_list = args.split(" ")
-            kw = {}
-            for arg in arg_list[1:]:
-                arg_splited = arg.split("=")
-                arg_splited[1] = eval(arg_splited[1])
-                if type(arg_splited[1]) is str:
-                    arg_splited[1] = arg_splited[1].replace("_", " ").replace('"', '\\"')
-                kw[arg_splited[0]] = arg_splited[1]
-        except SyntaxError:
+        valid_cls = self.classes
+        tokenize_args = args.split()
+        if not tokenize_args:
             print("** class name missing **")
-        except NameError:
+            return
+
+        cls_name = tokenize_args[0]
+        if cls_name not in valid_cls:
             print("** class doesn't exist **")
-        new_instance = HBNBCommand.classes[arg_list[0]](**kw)
-        new_instance.save()
-        print(new_instance.id)
+            return
+        key_value = vorg_console_command_dynamo(tokenize_args)
+        if len(key_value) == 0:
+            create_instance = eval(cls_name)()
+        else:
+            create_instance = eval(cls_name)(**key_value)
+        storage.save()
+        print(create_instance.id)
 
     def help_create(self):
         """ Help information for the create method """
@@ -195,7 +216,7 @@ class HBNBCommand(cmd.Cmd):
         key = c_name + "." + c_id
 
         try:
-            del(storage.all()[key])
+            del (storage.all()[key])
             storage.save()
         except KeyError:
             print("** no instance found **")
@@ -214,11 +235,13 @@ class HBNBCommand(cmd.Cmd):
             if args not in HBNBCommand.classes:
                 print("** class doesn't exist **")
                 return
-            for k, v in storage.all(HBNBCommand.classes[args]).items():
-                print_list.append(str(v))
+            for k, v in storage._FileStorage__objects.items():
+                if k.split('.')[0] == args:
+                    print_list.append(str(v))
         else:
-            for k, v in storage.all().items():
+            for k, v in storage._FileStorage__objects.items():
                 print_list.append(str(v))
+
         print(print_list)
 
     def help_all(self):
@@ -326,5 +349,5 @@ class HBNBCommand(cmd.Cmd):
         print("Updates an object with new information")
         print("Usage: update <className> <id> <attName> <attVal>\n")
 
+
 if __name__ == "__main__":
-    HBNBCommand().cmdloop()
